@@ -1,0 +1,362 @@
+-- [[ EVAN SCRIPT - RAYFIELD PURPLE VAMPIRE EDITION ]] --
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+--=========================================
+-- 1. VERIFICAÇÃO DE SEGURANÇA (WHITELIST)
+--=========================================
+-- UserIds fixos: não dependem de API nem do nome da conta
+local WHITELIST_IDS = {
+    [11131355621] = "vzwcaii"     
+}
+
+local WHITELIST_NAMES = {"rii6ngs", "vzwcaii"} -- tudo minúsculo, comparado em lower
+
+local autorizado = false
+
+-- 1) Por UserId (método principal, infalível)
+if WHITELIST_IDS[LocalPlayer.UserId] then
+    autorizado = true
+end
+
+-- 2) Por nome ou display name (fallback)
+if not autorizado then
+    local meuNomeLower = string.lower(LocalPlayer.Name)
+    local meuDisplayLower = string.lower(LocalPlayer.DisplayName)
+    for _, nome in ipairs(WHITELIST_NAMES) do
+        if meuNomeLower == nome or meuDisplayLower == nome then
+            autorizado = true
+            break
+        end
+    end
+end
+
+-- 3) Amigo do dono (com UserId fixo como backup se a API falhar)
+if not autorizado then
+    local donoId = nil
+
+    local sucesso, id = pcall(function()
+        return Players:GetUserIdFromNameAsync("vzwcaii")
+    end)
+    if sucesso and id then
+        donoId = id
+    else
+        donoId = 11131355621
+    end
+
+    local okFriend, isFriend = pcall(function()
+        return LocalPlayer:IsFriendsWith(11131355621)
+    end)
+    if okFriend and isFriend then
+        autorizado = true
+    end
+end
+
+-- Debug no console do executor
+print("[EvanUi] UserId: " .. LocalPlayer.UserId .. " | Nome: " .. LocalPlayer.Name .. " | Autorizado: " .. tostring(autorizado))
+
+if not autorizado then
+    LocalPlayer:Kick("Você não é poderosa")
+    return
+end
+
+--=========================================
+-- 2. CONFIGURAÇÕES E VARIÁVEIS GERAIS
+--=========================================
+local SETTINGS = {
+    KernelEnabled = false,
+    AutoClickEnabled = false,
+    AimlockEnabled = false,
+    EspEnabled = false,
+    DetectionRange = 1000,
+    CombatRange = 900,
+    AimlockRange = 350,
+    BurstSize = 20,
+    BurstCooldown = 0.040,
+    Backtrack = 0.9,
+    WhitelistName = "",
+    ClickDelay = 0.0001
+}
+
+local currentTarget = nil
+local nextBurstTime = 0
+local espInstances = {}
+
+--=========================================
+-- 3. INTERFACE RAYFIELD (carregado no topo)
+--=========================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "🩸 Evan Script | TVL",
+    LoadingTitle = "🩸 Carregando Poderes...",
+    LoadingSubtitle = "by Evan",
+    Theme = "Amethyst",
+    ConfigurationSaving = { Enabled = false },
+    Discord = { Enabled = false },
+    KeySystem = false
+})
+
+--=========================================
+-- 4. AIMLOCK & ATAQUE
+--=========================================
+RunService.RenderStepped:Connect(function()
+    if not SETTINGS.AimlockEnabled or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+    local myHRP = LocalPlayer.Character.HumanoidRootPart
+    local best, bestDist = nil, SETTINGS.AimlockRange
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            if p.Name == SETTINGS.WhitelistName then continue end
+            local hrp = p.Character.HumanoidRootPart
+            local d = (hrp.Position - myHRP.Position).Magnitude
+            if d < bestDist then bestDist, best = d, hrp end
+        end
+    end
+    if best then
+        currentTarget = best.Parent
+        workspace.CurrentCamera.CFrame = CFrame.new(workspace.CurrentCamera.CFrame.Position, best.Position)
+    else
+        currentTarget = nil
+    end
+end)
+
+--=========================================
+-- 5. ESP
+--=========================================
+local function limparESP()
+    for _, inst in ipairs(espInstances) do
+        pcall(function() inst:Destroy() end)
+    end
+    espInstances = {}
+end
+
+local function atualizarESP()
+    limparESP()
+    if not SETTINGS.EspEnabled then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+            local bb = Instance.new("BillboardGui")
+            bb.Name = "EvanESP"
+            bb.Size = UDim2.new(0, 150, 0, 30)
+            bb.StudsOffset = Vector3.new(0, 2.5, 0)
+            bb.AlwaysOnTop = true
+            bb.Parent = p.Character.Head
+
+            local name = Instance.new("TextLabel")
+            name.Size = UDim2.new(1, 0, 1, 0)
+            name.BackgroundTransparency = 1
+            name.Text = p.Name
+            name.TextColor3 = Color3.fromRGB(180, 100, 255)
+            name.TextSize = 14
+            name.Font = Enum.Font.SourceSansBold
+            name.Parent = bb
+
+            table.insert(espInstances, bb)
+        end
+    end
+end
+
+Players.PlayerAdded:Connect(function(p)
+    task.wait(2)
+    if SETTINGS.EspEnabled then atualizarESP() end
+end)
+
+--=========================================
+-- 6. AUTO CLICKER (TOGGLE TECLA E)
+--=========================================
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        SETTINGS.AutoClickEnabled = not SETTINGS.AutoClickEnabled
+        pcall(function()
+            Rayfield:Notify({
+                Title = "Auto Clicker",
+                Content = "Auto Clicker: " .. (SETTINGS.AutoClickEnabled and "ON" or "OFF"),
+                Duration = 2
+            })
+        end)
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if SETTINGS.AutoClickEnabled then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(0, 0))
+        task.wait(SETTINGS.ClickDelay)
+    end
+end)
+
+--=========================================
+-- 7. KERNEL / CANCEL
+--=========================================
+local Begin = ReplicatedStorage:FindFirstChild("BeginAbility", true)
+local Activate = ReplicatedStorage:FindFirstChild("AbilityActivated____", true)
+
+local oldFireServer
+if Activate then
+    oldFireServer = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+
+        if method == "FireServer" and self == ReplicatedStorage.Remotes.GameServices.ToServer.AutoclickerDetected then
+            return
+        end
+
+        if SETTINGS.KernelEnabled and not checkcaller() and self == Activate and method == "FireServer" then
+            if currentTarget and currentTarget:FindFirstChild("HumanoidRootPart") then
+                local tHRP = currentTarget.HumanoidRootPart
+                local myHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if myHRP then
+                    local perfectAimCFrame = CFrame.lookAt(myHRP.Position, tHRP.Position)
+                    for i, v in ipairs(args) do
+                        if typeof(v) == "CFrame" then args[i] = perfectAimCFrame end
+                        if typeof(v) == "Vector3" then args[i] = tHRP.Position end
+                        if typeof(v) == "Instance" and v:IsA("Model") then args[i] = currentTarget end
+                    end
+                end
+                if type(args[1]) == "number" and args[1] > 10^9 then
+                    args[1] = args[1] - SETTINGS.Backtrack
+                end
+                return oldFireServer(self, unpack(args))
+            end
+        end
+
+        return oldFireServer(self, ...)
+    end)
+end
+
+RunService.PostSimulation:Connect(function()
+    if not SETTINGS.KernelEnabled then return end
+    local char = LocalPlayer.Character
+    if char then
+        if char:GetAttribute("Stunned") then char:SetAttribute("Stunned", false) end
+        if char:GetAttribute("Busy") then char:SetAttribute("Busy", false) end
+    end
+
+    if tick() < nextBurstTime then return end
+
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local myPos = char.HumanoidRootPart.Position
+        local bestDist = SETTINGS.DetectionRange * SETTINGS.DetectionRange
+        local target = nil
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if p.Name == SETTINGS.WhitelistName then continue end
+                local tHRP = p.Character.HumanoidRootPart
+                if p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                    local distSq = (tHRP.Position - myPos).Magnitude
+                    if distSq < bestDist then bestDist = distSq; target = p.Character end
+                end
+            end
+        end
+        currentTarget = target
+    end
+
+    if currentTarget and char then
+        local tHRP = currentTarget:FindFirstChild("HumanoidRootPart")
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp and tHRP and (tHRP.Position - hrp.Position).Magnitude <= SETTINGS.CombatRange then
+            if Begin then Begin:FireServer() end
+            if Activate then
+                for i = 1, SETTINGS.BurstSize do
+                    Activate:FireServer(currentTarget)
+                end
+            end
+            nextBurstTime = tick() + SETTINGS.BurstCooldown
+        end
+    end
+end)
+
+--=========================================
+-- 8. ABA COMBATE: Cancel + Auto Clicker
+--=========================================
+local TabCombat = Window:CreateTab("🩸 Combate", "swords")
+
+local SectionCancel = TabCombat:CreateSection("⚔️ Cancel / Kernel")
+TabCombat:CreateToggle({
+    Name = "Ativar Cancel",
+    CurrentValue = false,
+    Flag = "ToggleCancel",
+    Callback = function(Value) SETTINGS.KernelEnabled = Value end
+})
+TabCombat:CreateSlider({
+    Name = "Alcance do Ataque (Studs)",
+    Range = {50, 1500},
+    Increment = 10,
+    CurrentValue = 900,
+    Flag = "SliderCancel",
+    Callback = function(Value) SETTINGS.CombatRange = Value end
+})
+
+local SectionClicker = TabCombat:CreateSection("⚡ Auto Clicker [tecla E]")
+TabCombat:CreateToggle({
+    Name = "Auto Clicker (ou pressione E)",
+    CurrentValue = false,
+    Flag = "ToggleClicker",
+    Callback = function(Value) SETTINGS.AutoClickEnabled = Value end
+})
+TabCombat:CreateSlider({
+    Name = "Velocidade do Clique",
+    Range = {0.0001, 1},
+    Increment = 0.05,
+    CurrentValue = 0.0001,
+    Flag = "SliderClicker",
+    Callback = function(Value) SETTINGS.ClickDelay = Value end
+})
+
+--=========================================
+-- 9. ABA MIRA
+--=========================================
+local TabAim = Window:CreateTab("🎯 Mira", "crosshair")
+TabAim:CreateToggle({
+    Name = "Ativar Camera Lock & Attack",
+    CurrentValue = false,
+    Flag = "ToggleAim",
+    Callback = function(Value) SETTINGS.AimlockEnabled = Value end
+})
+TabAim:CreateSlider({
+    Name = "Alcance da Mira (Lock)",
+    Range = {50, 1000},
+    Increment = 10,
+    CurrentValue = 350,
+    Flag = "SliderAim",
+    Callback = function(Value) SETTINGS.AimlockRange = Value end
+})
+
+--=========================================
+-- 10. ABA VISUAIS (ESP)
+--=========================================
+local TabVisuals = Window:CreateTab("🦇 Visuais", "eye")
+TabVisuals:CreateToggle({
+    Name = "Ativar ESP (Nomes Roxos)",
+    CurrentValue = false,
+    Flag = "ToggleEsp",
+    Callback = function(Value)
+        SETTINGS.EspEnabled = Value
+        atualizarESP()
+    end
+})
+
+--=========================================
+-- 11. ABA PROTEÇÃO
+--=========================================
+local TabSettings = Window:CreateTab("🛡️ Proteção", "shield")
+TabSettings:CreateInput({
+    Name = "Whitelist (Proteger Jogador)",
+    PlaceholderText = "Digite o Nick Aqui...",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        SETTINGS.WhitelistName = Text
+    end
+})
+
+Rayfield:Notify({
+    Title = "🩸 Evan Script",
+    Content = "Painel Evan ativado! Auto Clicker alterna com a tecla E.",
+    Duration = 5,
+    Image = "blood-drop"
+})
