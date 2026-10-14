@@ -1,4 +1,4 @@
--- [[ EVAN SCRIPT - RAYFIELD PURPLE VAMPIRE EDITION ]] --
+-- [[ REIS SCRIPT - RAYFIELD PURPLE VAMPIRE EDITION ]] --
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -57,7 +57,7 @@ if not autorizado then
 end
 
 -- Debug no console do executor
-print("[EvanUi] UserId: " .. LocalPlayer.UserId .. " | Nome: " .. LocalPlayer.Name .. " | Autorizado: " .. tostring(autorizado))
+print("[ReisUi] UserId: " .. LocalPlayer.UserId .. " | Nome: " .. LocalPlayer.Name .. " | Autorizado: " .. tostring(autorizado))
 
 if not autorizado then
     LocalPlayer:Kick("Você não é poderosa")
@@ -92,9 +92,9 @@ local espInstances = {}
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "🩸 Evan Script | TVL",
+    Name = "🩸 Reis Script | TVL",
     LoadingTitle = "🩸 Carregando Poderes...",
-    LoadingSubtitle = "by Evan",
+    LoadingSubtitle = "by Reis",
     Theme = "Amethyst",
     ConfigurationSaving = { Enabled = false },
     Discord = { Enabled = false },
@@ -140,7 +140,7 @@ local function atualizarESP()
     for _, p in ipairs(Players:GetPlayers()) do
         if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
             local bb = Instance.new("BillboardGui")
-            bb.Name = "EvanESP"
+            bb.Name = "ReisESP"
             bb.Size = UDim2.new(0, 150, 0, 30)
             bb.StudsOffset = Vector3.new(0, 2.5, 0)
             bb.AlwaysOnTop = true
@@ -278,32 +278,32 @@ local TabCombat = Window:CreateTab("🩸 Combate", "swords")
 
 local SectionCancel = TabCombat:CreateSection("⚔️ Cancel / Kernel")
 TabCombat:CreateToggle({
-    Name = "Ativar Cancel",
+    Name = "Cancel",
     CurrentValue = false,
     Flag = "ToggleCancel",
     Callback = function(Value) SETTINGS.KernelEnabled = Value end
 })
 TabCombat:CreateSlider({
     Name = "Alcance do Ataque (Studs)",
-    Range = {50, 1500},
+    Range = {50, 1700},
     Increment = 10,
     CurrentValue = 900,
     Flag = "SliderCancel",
     Callback = function(Value) SETTINGS.CombatRange = Value end
 })
 
-local SectionClicker = TabCombat:CreateSection("⚡ Auto Clicker [tecla E]")
+local SectionClicker = TabCombat:CreateSection(" Auto Clicker [tecla E]")
 TabCombat:CreateToggle({
-    Name = "Auto Clicker (ou pressione E)",
+    Name = "Auto Clicker ",
     CurrentValue = false,
     Flag = "ToggleClicker",
     Callback = function(Value) SETTINGS.AutoClickEnabled = Value end
 })
 TabCombat:CreateSlider({
     Name = "Velocidade do Clique",
-    Range = {0.0001, 1},
+    Range = {0.00001, 1},
     Increment = 0.05,
-    CurrentValue = 0.0001,
+    CurrentValue = 0.00001,
     Flag = "SliderClicker",
     Callback = function(Value) SETTINGS.ClickDelay = Value end
 })
@@ -332,7 +332,7 @@ TabAim:CreateSlider({
 --=========================================
 local TabVisuals = Window:CreateTab("🦇 Visuais", "eye")
 TabVisuals:CreateToggle({
-    Name = "Ativar ESP (Nomes Roxos)",
+    Name = "ESP",
     CurrentValue = false,
     Flag = "ToggleEsp",
     Callback = function(Value)
@@ -355,8 +355,8 @@ TabSettings:CreateInput({
 })
 
 Rayfield:Notify({
-    Title = "🩸 Evan Script",
-    Content = "Painel Evan ativado! Auto Clicker alterna com a tecla E.",
+    Title = "🩸 Reis Script",
+    Content = "Painel Reis ativado! Auto Clicker alterna com a tecla E.",
     Duration = 5,
     Image = "blood-drop"
 })
