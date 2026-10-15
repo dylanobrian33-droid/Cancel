@@ -1,4 +1,4 @@
--- [[ REIS SCRIPT - RAYFIELD PURPLE VAMPIRE EDITION ]] --
+-- [[ REIS SCRIPT - RAYFIELD ORANGE VAMPIRE EDITION ]] --
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -9,58 +9,85 @@ local LocalPlayer = Players.LocalPlayer
 --=========================================
 -- 1. VERIFICAÇÃO DE SEGURANÇA (WHITELIST)
 --=========================================
--- UserIds fixos: não dependem de API nem do nome da conta
-local WHITELIST_IDS = {
-    [11131355621] = "vzwcaii"     
-}
+-- IDs autorizados diretamente
+-- 123456789 = wildeRAer (TROQUE pelo UserId real dele)
+-- 11131355621 = vzwcaii
+local WHITELIST_IDS = {123456789, 11131355621}
 
-local WHITELIST_NAMES = {"rii6ngs", "vzwcaii"} -- tudo minúsculo, comparado em lower
+local WHITELIST_NAMES = {"wileraer", "vzwcaii"}
 
 local autorizado = false
+local motivo = "nenhum"
 
--- 1) Por UserId (método principal, infalível)
-if WHITELIST_IDS[LocalPlayer.UserId] then
-    autorizado = true
+-- 1) UserId
+for _, id in ipairs(WHITELIST_IDS) do
+    if LocalPlayer.UserId == id then
+        autorizado = true
+        motivo = "UserId"
+        break
+    end
 end
 
--- 2) Por nome ou display name (fallback)
+-- 2) Nome / DisplayName
 if not autorizado then
-    local meuNomeLower = string.lower(LocalPlayer.Name)
-    local meuDisplayLower = string.lower(LocalPlayer.DisplayName)
+    local n = string.lower(LocalPlayer.Name)
+    local d = string.lower(tostring(LocalPlayer.DisplayName))
     for _, nome in ipairs(WHITELIST_NAMES) do
-        if meuNomeLower == nome or meuDisplayLower == nome then
+        if n == nome or d == nome then
             autorizado = true
+            motivo = "Nome"
             break
         end
     end
 end
 
--- 3) Amigo do dono (com UserId fixo como backup se a API falhar)
+-- 3) Amigo de QUALQUER pessoa da whitelist (wildeRAer OU vzwcaii)
 if not autorizado then
-    local donoId = nil
-
-    local sucesso, id = pcall(function()
-        return Players:GetUserIdFromNameAsync("vzwcaii")
-    end)
-    if sucesso and id then
-        donoId = id
-    else
-        donoId = 11131355621
-    end
-
-    local okFriend, isFriend = pcall(function()
-        return LocalPlayer:IsFriendsWith(11131355621)
-    end)
-    if okFriend and isFriend then
-        autorizado = true
+    for _, donoId in ipairs(WHITELIST_IDS) do
+        local okFriend, isFriend = pcall(function()
+            return LocalPlayer:IsFriendsWith(donoId)
+        end)
+        if okFriend and isFriend then
+            autorizado = true
+            motivo = "Amigo do UserId " .. donoId
+            break
+        end
     end
 end
 
--- Debug no console do executor
-print("[ReisUi] UserId: " .. LocalPlayer.UserId .. " | Nome: " .. LocalPlayer.Name .. " | Autorizado: " .. tostring(autorizado))
+-- 4) Fallback: lista de amigos real (caso IsFriendsWith falhe no executor)
+if not autorizado then
+    local okList, friendsList = pcall(function()
+        return LocalPlayer:GetFriendsAsync(999999999)
+    end)
+    if okList and friendsList then
+        local okPages, pages = pcall(function()
+            return friendsList:GetCurrentPages()
+        end)
+        if okPages and pages and pages[1] then
+            for _, amigo in ipairs(pages[1]) do
+                for _, donoId in ipairs(WHITELIST_IDS) do
+                    if amigo.Id == donoId then
+                        autorizado = true
+                        motivo = "Amigo (via GetFriendsAsync)"
+                        break
+                    end
+                end
+                if autorizado then break end
+            end
+        end
+    end
+end
+
+-- DEBUG no console do executor
+print("[ReisUi] UserId: " .. tostring(LocalPlayer.UserId) ..
+      " | Name: " .. tostring(LocalPlayer.Name) ..
+      " | Display: " .. tostring(LocalPlayer.DisplayName) ..
+      " | Autorizado: " .. tostring(autorizado) ..
+      " | Motivo: " .. motivo)
 
 if not autorizado then
-    LocalPlayer:Kick("Você não é poderosa")
+    LocalPlayer:Kick("Acesso Negado: Apenas wildeRAer, vzwcaii ou amigos deles podem usar este painel.")
     return
 end
 
@@ -72,8 +99,9 @@ local SETTINGS = {
     AutoClickEnabled = false,
     AimlockEnabled = false,
     EspEnabled = false,
+    AimAssistEnabled = false,
     DetectionRange = 1000,
-    CombatRange = 900,
+    CombatRange = 1500,
     AimlockRange = 350,
     BurstSize = 20,
     BurstCooldown = 0.040,
@@ -87,19 +115,29 @@ local nextBurstTime = 0
 local espInstances = {}
 
 --=========================================
--- 3. INTERFACE RAYFIELD (carregado no topo)
+-- 3. INTERFACE RAYFIELD (TEMA LARANJA)
 --=========================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "🩸 Reis Script | TVL",
-    LoadingTitle = "🩸 Carregando Poderes...",
+    Name = "🧡 Reis Script | TVL",
+    LoadingTitle = "🧡 Carregando Poderes...",
     LoadingSubtitle = "by Reis",
-    Theme = "Amethyst",
+    Theme = "Sunset",
     ConfigurationSaving = { Enabled = false },
     Discord = { Enabled = false },
     KeySystem = false
 })
+
+pcall(function()
+    Rayfield:SetTheme({
+        AccentColor = Color3.fromRGB(255, 130, 20),
+        ButtonColor = Color3.fromRGB(255, 90, 20),
+        TabColor = Color3.fromRGB(255, 140, 40),
+        BackgroundColor = Color3.fromRGB(35, 20, 10),
+        HeaderColor = Color3.fromRGB(255, 100, 0)
+    })
+end)
 
 --=========================================
 -- 4. AIMLOCK & ATAQUE
@@ -125,7 +163,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 --=========================================
--- 5. ESP
+-- 5. ESP (AZUL)
 --=========================================
 local function limparESP()
     for _, inst in ipairs(espInstances) do
@@ -150,7 +188,7 @@ local function atualizarESP()
             name.Size = UDim2.new(1, 0, 1, 0)
             name.BackgroundTransparency = 1
             name.Text = p.Name
-            name.TextColor3 = Color3.fromRGB(180, 100, 255)
+            name.TextColor3 = Color3.fromRGB(80, 140, 255) -- AZUL
             name.TextSize = 14
             name.Font = Enum.Font.SourceSansBold
             name.Parent = bb
@@ -240,19 +278,51 @@ RunService.PostSimulation:Connect(function()
     if tick() < nextBurstTime then return end
 
     if char and char:FindFirstChild("HumanoidRootPart") then
-        local myPos = char.HumanoidRootPart.Position
-        local bestDist = SETTINGS.DetectionRange * SETTINGS.DetectionRange
         local target = nil
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                if p.Name == SETTINGS.WhitelistName then continue end
-                local tHRP = p.Character.HumanoidRootPart
-                if p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
-                    local distSq = (tHRP.Position - myPos).Magnitude
-                    if distSq < bestDist then bestDist = distSq; target = p.Character end
+
+        if SETTINGS.AimAssistEnabled then
+            -- Aim Assist: alvo mais próximo do mouse/câmera
+            local cam = workspace.CurrentCamera
+            local camPos = cam.CFrame.Position
+            local camDir = cam.CFrame.LookVector
+
+            local bestScore = math.huge
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if p.Name == SETTINGS.WhitelistName then continue end
+                    local tHRP = p.Character.HumanoidRootPart
+                    if p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                        local toTarget = (tHRP.Position - camPos)
+                        local dist = toTarget.Magnitude
+                        if dist > 0 then
+                            local dot = toTarget.Unit:Dot(camDir)
+                            if dot > 0 then
+                                local score = dist + (1 - dot) * 500
+                                if score < bestScore then
+                                    bestScore = score
+                                    target = p.Character
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+        else
+            -- Original: alvo mais próximo do player
+            local myPos = char.HumanoidRootPart.Position
+            local bestDist = SETTINGS.DetectionRange * SETTINGS.DetectionRange
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    if p.Name == SETTINGS.WhitelistName then continue end
+                    local tHRP = p.Character.HumanoidRootPart
+                    if p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health > 0 then
+                        local distSq = (tHRP.Position - myPos).Magnitude
+                        if distSq < bestDist then bestDist = distSq; target = p.Character end
+                    end
                 end
             end
         end
+
         currentTarget = target
     end
 
@@ -272,38 +342,38 @@ RunService.PostSimulation:Connect(function()
 end)
 
 --=========================================
--- 8. ABA COMBATE: Cancel + Auto Clicker
+-- 8. ABA COMBATE
 --=========================================
-local TabCombat = Window:CreateTab("🩸 Combate", "swords")
+local TabCombat = Window:CreateTab("🧡 Combate", "swords")
 
 local SectionCancel = TabCombat:CreateSection("⚔️ Cancel / Kernel")
 TabCombat:CreateToggle({
-    Name = "Cancel",
+    Name = "Ativar Cancel",
     CurrentValue = false,
     Flag = "ToggleCancel",
     Callback = function(Value) SETTINGS.KernelEnabled = Value end
 })
 TabCombat:CreateSlider({
     Name = "Alcance do Ataque (Studs)",
-    Range = {50, 1700},
+    Range = {50, 5000},
     Increment = 10,
-    CurrentValue = 900,
+    CurrentValue = 1500,
     Flag = "SliderCancel",
     Callback = function(Value) SETTINGS.CombatRange = Value end
 })
 
-local SectionClicker = TabCombat:CreateSection(" Auto Clicker [tecla E]")
+local SectionClicker = TabCombat:CreateSection("⚡ Auto Clicker [tecla E]")
 TabCombat:CreateToggle({
-    Name = "Auto Clicker ",
+    Name = "Auto Clicker (ou pressione E)",
     CurrentValue = false,
     Flag = "ToggleClicker",
     Callback = function(Value) SETTINGS.AutoClickEnabled = Value end
 })
 TabCombat:CreateSlider({
     Name = "Velocidade do Clique",
-    Range = {0.00001, 1},
+    Range = {0.0001, 1},
     Increment = 0.05,
-    CurrentValue = 0.00001,
+    CurrentValue = 0.0001,
     Flag = "SliderClicker",
     Callback = function(Value) SETTINGS.ClickDelay = Value end
 })
@@ -327,12 +397,20 @@ TabAim:CreateSlider({
     Callback = function(Value) SETTINGS.AimlockRange = Value end
 })
 
+TabAim:CreateSection("🧿 Aim Assist")
+TabAim:CreateToggle({
+    Name = "Aim Assist (Cancel mira onde o mouse aponta)",
+    CurrentValue = false,
+    Flag = "ToggleAimAssist",
+    Callback = function(Value) SETTINGS.AimAssistEnabled = Value end
+})
+
 --=========================================
--- 10. ABA VISUAIS (ESP)
+-- 10. ABA VISUAIS (ESP AZUL)
 --=========================================
-local TabVisuals = Window:CreateTab("🦇 Visuais", "eye")
+local TabVisuals = Window:CreateTab("💙 Visuais", "eye")
 TabVisuals:CreateToggle({
-    Name = "ESP",
+    Name = "Ativar ESP (Nomes Azuis)",
     CurrentValue = false,
     Flag = "ToggleEsp",
     Callback = function(Value)
@@ -355,8 +433,8 @@ TabSettings:CreateInput({
 })
 
 Rayfield:Notify({
-    Title = "🩸 Reis Script",
+    Title = "🧡 Reis Script",
     Content = "Painel Reis ativado! Auto Clicker alterna com a tecla E.",
     Duration = 5,
-    Image = "blood-drop"
+    Image = "sunset"
 })
