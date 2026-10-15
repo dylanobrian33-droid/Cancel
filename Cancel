@@ -355,9 +355,9 @@ TabCombat:CreateToggle({
 })
 TabCombat:CreateSlider({
     Name = "Alcance do Ataque (Studs)",
-    Range = {50, 5000},
+    Range = {50, 2000},
     Increment = 10,
-    CurrentValue = 1500,
+    CurrentValue = 2000,
     Flag = "SliderCancel",
     Callback = function(Value) SETTINGS.CombatRange = Value end
 })
