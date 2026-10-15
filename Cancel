@@ -100,9 +100,9 @@ local SETTINGS = {
     AimlockEnabled = false,
     EspEnabled = false,
     AimAssistEnabled = false,
-    DetectionRange = 1000,
-    CombatRange = 1500,
-    AimlockRange = 350,
+    DetectionRange = 2000,
+    CombatRange = 1700,
+    AimlockRange = 500,
     BurstSize = 20,
     BurstCooldown = 0.040,
     Backtrack = 0.9,
@@ -357,7 +357,7 @@ TabCombat:CreateSlider({
     Name = "Alcance do Ataque (Studs)",
     Range = {50, 2000},
     Increment = 10,
-    CurrentValue = 2000,
+    CurrentValue = 1500,
     Flag = "SliderCancel",
     Callback = function(Value) SETTINGS.CombatRange = Value end
 })
@@ -397,9 +397,9 @@ TabAim:CreateSlider({
     Callback = function(Value) SETTINGS.AimlockRange = Value end
 })
 
-TabAim:CreateSection("🧿 Aim Assist")
+TabAim:CreateSection(" Aim Assist")
 TabAim:CreateToggle({
-    Name = "Aim Assist (Cancel mira onde o mouse aponta)",
+    Name = "Aim Assist",
     CurrentValue = false,
     Flag = "ToggleAimAssist",
     Callback = function(Value) SETTINGS.AimAssistEnabled = Value end
@@ -434,7 +434,7 @@ TabSettings:CreateInput({
 
 Rayfield:Notify({
     Title = "🧡 Reis Script",
-    Content = "Painel Reis ativado! Auto Clicker alterna com a tecla E.",
-    Duration = 5,
+    Content = "Painel Reis ativado!",
+    Duration = 3,
     Image = "sunset"
 })
